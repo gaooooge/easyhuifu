@@ -673,4 +673,5 @@ try {
 - [src/Service/PayoutService.php](src/Service/PayoutService.php)
 - [src/Service/RefundService.php](src/Service/RefundService.php)
 - [src/Service/EntryService.php](src/Service/EntryService.php)
+- [examples/README.md](examples/README.md)
 - [docs/THINKPHP_ADAPTER.md](docs/THINKPHP_ADAPTER.md)

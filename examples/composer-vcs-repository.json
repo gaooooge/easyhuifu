@@ -1,0 +1,11 @@
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/gaooooge/easyhuifu"
+    }
+  ],
+  "require": {
+    "gaooooge/easyhuifu": "^0.1"
+  }
+}
