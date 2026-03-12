@@ -297,12 +297,9 @@ class EntryService extends BaseService
             $this->assertRequired($card, ['prov_id', 'area_id'], 'Bank card params');
         } elseif (empty($card['branch_code']) && !empty($card['branch_name'])) {
             $resolver = $this->branchCodeResolver();
-            if ($resolver === null) {
-                throw new EasyHuifuException('Enterprise bank card requires branch_code or a branch code resolver');
-            }
             $card['branch_code'] = trim((string)$resolver->resolve((string)$card['branch_name'], isset($card['bank_code']) ? (string)$card['bank_code'] : ''));
             if ($card['branch_code'] === '') {
-                throw new EasyHuifuException('Enterprise bank card branch code resolver returned an empty branch_code');
+                throw new EasyHuifuException('Enterprise bank card branch code could not be resolved from local dataset');
             }
         }
 

@@ -11,10 +11,32 @@ $huifu = new Application([
     'rsa_private_key' => 'your-private-key',
     'rsa_public_key' => 'huifu-public-key',
     'upper_huifu_id' => '666600010000001',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
     'prod_mode' => true,
 ]);
 
 try {
+    $pay = $huifu->pay()->miniApp([
+        'amount' => 0.01,
+        'goods_desc' => '订单支付',
+        'order_no' => 'M202603120001',
+        'sub_appid' => 'wx1234567890abcdef',
+        'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
+        'delay_acct_flag' => 'Y',
+        'acct_split_bunch' => [
+            'acct_infos' => [
+                [
+                    'div_amt' => '0.0030',
+                    'huifu_id' => '666600010000002',
+                ],
+                [
+                    'div_amt' => '0.0020',
+                    'huifu_id' => '666600010000003',
+                ],
+            ],
+        ],
+    ]);
+
     $payout = $huifu->payout()->payToActor([
         'huifu_id' => '6666000xxxxxxx',
         'amount' => 12.50,
@@ -27,7 +49,7 @@ try {
         'pay_time' => time(),
     ], 10.00, 'refund202603120001');
 
-    var_dump($payout, $refund);
+    var_dump($pay, $payout, $refund);
 } catch (EasyHuifuException $e) {
     echo $e->getMessage() . PHP_EOL;
 }

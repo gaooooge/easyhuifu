@@ -8,7 +8,7 @@
 
 ## 设计目标
 
-- 提供类似 `easywechat` 的入口方式：`$huifu->payout()`、`$huifu->refund()`、`$huifu->entry()`
+- 提供类似 `easywechat` 的入口方式：`$huifu->pay()`、`$huifu->payout()`、`$huifu->refund()`、`$huifu->entry()`
 - 不依赖 ThinkPHP
 - 不依赖任何项目内 Model
 - 不直接依赖项目内日志组件
@@ -18,6 +18,9 @@
 
 ## 当前已封装的能力
 
+- 交易支付下单
+- 支付查询
+- 支付关单
 - 余额打款
 - 扫码退款
 - 个人进件
@@ -25,6 +28,8 @@
 - 业务开通
 - 进件回显
 - 进件档案快照持久化
+- 包内置联行号字典文件
+- 包内置汇付地区编码文件
 
 ## 为什么不直接并进 easywechat
 
@@ -199,6 +204,196 @@ $huifu = new Application([
     'rsa_private_key' => 'your-private-key',
     'rsa_public_key' => 'huifu-public-key',
     'upper_huifu_id' => '666600010000001',
+    'prod_mode' => true,
+]);
+```
+
+### 1.1 交易支付
+
+当前版本已经内置 `PayService`，统一入口如下：
+
+```php
+$huifu->pay()->create([...]);
+$huifu->pay()->jsPay([...]);
+$huifu->pay()->miniApp([...]);
+$huifu->pay()->query([...]);
+$huifu->pay()->close([...]);
+```
+
+这一版是基于当前项目里已经在跑的汇付支付链路抽出来的，重点覆盖：
+
+- 微信小程序下单
+- 微信 JSAPI/公众号下单
+- 原单查询
+- 原单关单
+
+包内不负责“回调验签、订单落库、业务状态推进”。这些逻辑本质上属于业务系统，不适合做成通用 SDK。
+
+### 1.2 发起支付
+
+最小可用示例：
+
+```php
+$pay = $huifu->pay()->miniApp([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120001',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'sub_appid' => 'wx1234567890abcdef',
+    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
+    'delay_acct_flag' => 'Y',
+    'acct_split_bunch' => [
+        'acct_infos' => [
+            [
+                'div_amt' => '0.0030',
+                'huifu_id' => '666600010000002',
+            ],
+            [
+                'div_amt' => '0.0020',
+                'huifu_id' => '666600010000003',
+            ],
+        ],
+    ],
+]);
+```
+
+返回结果示例：
+
+```php
+[
+    'req_seq_id' => 'rQ20260312123000123456789012345678',
+    'req_date' => '20260312',
+    'huifu_id' => '666600010000001',
+    'resp_code' => '00000100',
+    'resp_desc' => '成功',
+    'pay_info' => [
+        'package' => 'prepay_id=wx...',
+        'timeStamp' => '1710211200',
+        'nonceStr' => 'abc123',
+        'signType' => 'RSA',
+        'paySign' => 'xxxx',
+    ],
+    'response' => [...],
+]
+```
+
+#### 支付参数说明
+
+- `amount`
+  必填，支付金额
+- `notify_url`
+  必填；可直接传，也可以放到初始化配置里作为默认值
+- `goods_desc`
+  可选，商品描述，默认 `订单支付`
+- `order_no`
+  可选，业务订单号；会默认透传到 `remark`
+- `req_seq_id`
+  可选，自定义汇付请求流水号；不传则自动生成
+- `huifu_id`
+  可选，默认使用配置中的 `sys_id`
+- `trade_type`
+  可选；不传时会根据 `pay_source` 自动推断
+- `pay_source`
+  可选；`wx/wxapp/miniapp` 会映射成 `T_MINIAPP`，`mp/jsapi` 会映射成 `T_JSAPI`
+- `sub_appid`
+  微信子应用 `appid`
+- `sub_openid`
+  用户在该子应用下的 `openid`
+- `wx_data`
+  可选；如果你想完全自己控制微信参数，可以直接传完整数组或 JSON 字符串
+- `delay_acct_flag`
+  可选；是否延迟分账，传 `Y` 表示开启，默认 `N`
+- `acct_split_bunch`
+  可选；延迟分账明细，支持直接传数组，包内会自动转成汇付要求的 JSON
+
+#### `miniApp()` 和 `jsPay()` 的关系
+
+- `miniApp()` 是语义化别名，默认把 `trade_type` 固定成 `T_MINIAPP`
+- `jsPay()` 是更通用的入口，适合你自己指定 `trade_type`
+- `create()` 当前默认等价于 `jsPay()`
+
+#### 延迟分账参数示例
+
+如果你要在小程序下单时一并声明“后续要分给谁”，直接这样传：
+
+```php
+$pay = $huifu->pay()->miniApp([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120001',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'sub_appid' => 'wx1234567890abcdef',
+    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
+    'delay_acct_flag' => 'Y',
+    'acct_split_bunch' => [
+        'acct_infos' => [
+            [
+                'div_amt' => '0.0030',
+                'huifu_id' => '666600010000002',
+            ],
+            [
+                'div_amt' => '0.0020',
+                'huifu_id' => '666600010000003',
+            ],
+        ],
+    ],
+]);
+```
+
+规则说明：
+
+- `delay_acct_flag = Y` 表示该笔交易按延迟分账处理
+- `acct_split_bunch.acct_infos[*].huifu_id` 是分账接收方汇付号
+- `acct_split_bunch.acct_infos[*].div_amt` 是该接收方预分账金额
+- `acct_split_bunch` 也可以直接传 JSON 字符串；如果你传数组，包会自动编码
+- 这一步只是把延迟分账参数带到支付下单里，不等于已经执行最终分账
+
+### 1.3 查询支付单
+
+```php
+$query = $huifu->pay()->query([
+    'org_req_seq_id' => 'rQ20260312123000123456789012345678',
+    'org_req_date' => '20260312',
+]);
+```
+
+查询时以下三组选一即可：
+
+- `out_ord_id`
+- `org_hf_seq_id`
+- `org_req_seq_id`
+
+如果没传 `org_req_date`，包会按以下顺序兜底：
+
+- 从 `org_req_seq_id` 中提取日期
+- 使用 `pay_time`
+- 最后退回当天日期
+
+### 1.4 关闭支付单
+
+```php
+$close = $huifu->pay()->close([
+    'org_req_seq_id' => 'rQ20260312123000123456789012345678',
+    'org_req_date' => '20260312',
+]);
+```
+
+关单至少需要：
+
+- `org_req_seq_id`
+- `org_hf_seq_id`
+
+### 1.5 支付配置建议
+
+如果你的项目里所有支付回调地址一致，建议初始化时直接放默认值：
+
+```php
+$huifu = new Application([
+    'sys_id' => '666600010000001',
+    'product_id' => '1234567890',
+    'rsa_private_key' => 'your-private-key',
+    'rsa_public_key' => 'huifu-public-key',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
     'prod_mode' => true,
 ]);
 ```
@@ -386,7 +581,13 @@ $result = $huifu->entry()->openEnterprise([
 - `bank_code`
 - `branch_name` 或 `branch_code`
 
-如果你只传了 `branch_name`，没有传 `branch_code`，则必须注入 `branch_code_resolver`，由项目自行把支行名称解析成联行号。
+如果你只传了 `branch_name`，没有传 `branch_code`，包会优先使用内置联行号字典自动解析。
+
+只有在以下情况，才建议额外注入 `branch_code_resolver`：
+
+- 你希望继续走项目自己的联行号表
+- 你希望覆盖包内置数据
+- 你有更严格的支行匹配规则
 
 ### 6. 单独业务开通
 
@@ -419,6 +620,75 @@ $detail = $huifu->entry()->detailByActor([
 
 如果没有注入 `entry_repository`，这个方法会直接抛异常，因为包本身不负责数据库访问。
 
+### 8. 使用包内置联行号字典
+
+`easyhuifu` 已经把联行号字典打包进仓库，不需要在运行时再查数据库或再拉远程接口。
+
+```php
+$banks = $huifu->bankBranches()->getBankOptions('建设');
+
+$branches = $huifu->bankBranches()->getBranchList([
+    'head_bank_code' => '01050000',
+    'keyword' => '上海',
+    'page' => 1,
+    'pageSize' => 20,
+]);
+
+$branchCode = $huifu->bankBranches()->resolveBranchCode('中国建设银行上海某某支行', '01050000');
+$isValid = $huifu->bankBranches()->isValidBranchCode($branchCode);
+```
+
+常用能力：
+
+- `isValidBranchCode($unionCode)`
+  校验支行联行号是否存在
+- `resolveBranchCode($branchName, $bankCode = '')`
+  通过支行名称获取联行号；如果同名支行有多条且你没传 `bankCode`，会返回空字符串，避免误匹配
+- `matchBranches($keyword, $bankCode = '', $limit = 20)`
+  按关键字搜索支行列表，适合做联想选择
+- `getByUnionCode($unionCode)`
+  反查联行号对应的完整支行信息
+
+示例：
+
+```php
+$isValid = $huifu->bankBranches()->isValidBranchCode('105290071008');
+
+$branchCode = $huifu->bankBranches()->resolveBranchCode(
+    '中国建设银行上海张江支行',
+    '01050000'
+);
+
+$branchList = $huifu->bankBranches()->matchBranches('张江', '01050000', 10);
+```
+
+`export_reference_data.php` 只是维护包内参考数据的脚本，不是运行时依赖。
+它现在必须显式传入以下环境变量才会去连接数据库导出联行号：
+
+- `EASYHUIFU_DB_HOST`
+- `EASYHUIFU_DB_NAME`
+- `EASYHUIFU_DB_USER`
+- `EASYHUIFU_DB_PASS`
+- `EASYHUIFU_DB_PORT`
+- `EASYHUIFU_DB_PREFIX`
+
+也就是说，包本身不会自动去连你的业务项目数据库。
+
+### 9. 使用包内置汇付地区编码
+
+`easyhuifu` 也已经把汇付地区编码 JSON 固化进包里，不需要运行时再请求远程地址。
+
+```php
+$tree = $huifu->regions()->tree();
+$provinceList = $huifu->regions()->getChildren('');
+$cityList = $huifu->regions()->getChildren('310000');
+
+$detail = $huifu->regions()->detail('310101');
+$name = $huifu->regions()->getNameByCode('310101');
+$code = $huifu->regions()->getCodeByName('浦东新区', 3, '310100');
+$isValid = $huifu->regions()->isValidCode('310101');
+```
+
 ## 适配器机制
 
 这个包支持通过第二个构造参数注入扩展服务：
@@ -428,6 +698,7 @@ $huifu = new Application($config, [
     'logger' => $logger,
     'entry_repository' => $entryRepository,
     'branch_code_resolver' => $branchCodeResolver,
+    'region_repository' => $regionRepository,
 ]);
 ```
 
@@ -439,6 +710,8 @@ $huifu = new Application($config, [
   自定义进件档案仓储
 - `branch_code_resolver`
   自定义支行名称转联行号解析器
+- `region_repository`
+  自定义汇付地区编码仓储
 
 ## 接口说明
 
@@ -599,14 +872,16 @@ try {
 
 ## 什么时候必须注入 `branch_code_resolver`
 
-以下场景必须注入：
+以下场景建议注入：
 
-- 企业银行卡只传 `branch_name`
-- 没有直接传 `branch_code`
+- 你要覆盖包内置联行号字典
+- 你要继续走自己项目里的 `bank_branch_codes` 表
+- 你要实现更复杂的支行歧义处理规则
 
-以下场景可以不注入：
+以下场景通常不需要注入：
 
-- 企业银行卡直接传了 `branch_code`
+- 直接使用包内置联行号字典
+- 企业银行卡已经直接传了 `branch_code`
 - 个人银行卡场景
 
 ## 推荐的复用姿势
