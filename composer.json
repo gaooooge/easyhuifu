@@ -1,0 +1,25 @@
+{
+    "name": "gaooooge/easyhuifu",
+    "description": "A lightweight Huifu SDK wrapper with easywechat-style service access.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "huifu",
+        "payment",
+        "sdk",
+        "easywechat-style"
+    ],
+    "homepage": "https://github.com/gaooooge/easyhuifu",
+    "require": {
+        "php": ">=7.1.0",
+        "huifurepo/dg-php-sdk": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "EasyHuifu\\": "src/"
+        },
+        "files": [
+            "src/bootstrap.php"
+        ]
+    }
+}
