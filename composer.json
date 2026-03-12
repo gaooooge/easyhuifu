@@ -1,13 +1,13 @@
 {
     "name": "gaooooge/easyhuifu",
-    "description": "A lightweight Huifu SDK wrapper with easywechat-style service access.",
+    "description": "A PHP library for Huifu payments, onboarding, payouts, refunds, and reference data access.",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "huifu",
         "payment",
         "sdk",
-        "easywechat-style"
+        "onboarding"
     ],
     "homepage": "https://github.com/gaooooge/easyhuifu",
     "require": {
