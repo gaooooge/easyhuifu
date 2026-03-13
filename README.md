@@ -1,4 +1,4 @@
-# easyhuifu
+﻿# easyhuifu
 
 `easyhuifu` 是一个面向 PHP 的汇付能力封装包，用于统一管理配置、SDK 初始化、请求发送、响应解析及异常处理。
 
@@ -535,3 +535,19 @@ EasyHuifu\Exception\EasyHuifuException
 - `examples/native-php.php`
 - `examples/README.md`
 - `docs/THINKPHP_ADAPTER.md`
+
+
+## 延迟分账交易确认说明（必读）
+
+- 开启 `delay_acct_flag = Y` 后，支付资金先进入延迟户，`pay()->miniApp()/jsPay()` 仅是“预分账”，不会自动划转到分账接收方。
+- 订单支付成功后，需要主动调用交易确认接口完成划转：`$huifu->split()->confirm([...])`。
+- 确认提交后可调用 `$huifu->split()->confirmQuery([...])` 查询确认状态，建议在业务侧做重试与幂等。
+
+接口映射（easyhuifu -> 汇付官方 SDK）：
+- `split()->confirm()` -> `V2TradePaymentDelaytransConfirmRequest`
+- `split()->confirmQuery()` -> `V2TradePaymentDelaytransConfirmqueryRequest`
+- `split()->confirmRefund()` -> `V2TradePaymentDelaytransConfirmrefundRequest`
+
+当前状态：
+- 以上 3 个接口已经在 `easyhuifu` 中封装完成。
+- `V2TradePaymentDelaytransConfirmrefundqueryRequest`（确认退款查询）已封装，对应 `split()->confirmRefundQuery()`。

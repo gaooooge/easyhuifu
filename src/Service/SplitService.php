@@ -4,6 +4,7 @@ namespace EasyHuifu\Service;
 
 use BsPaySdk\request\V2TradePaymentDelaytransConfirmRequest;
 use BsPaySdk\request\V2TradePaymentDelaytransConfirmrefundRequest;
+use BsPaySdk\request\V2TradePaymentDelaytransConfirmrefundqueryRequest;
 use BsPaySdk\request\V2TradePaymentDelaytransConfirmqueryRequest;
 use EasyHuifu\Exception\EasyHuifuException;
 
@@ -129,6 +130,38 @@ class SplitService extends BaseService
             'req_date' => $request->getReqDate(),
             'huifu_id' => $request->getHuifuId(),
             'org_req_seq_id' => $request->getOrgReqSeqId(),
+            'org_req_date' => $request->getOrgReqDate(),
+            'resp_code' => $this->extractRespCode($response),
+            'resp_desc' => $this->extractRespDesc($response),
+            'response' => $response,
+        ];
+    }
+
+    public function confirmRefundQuery(array $payload)
+    {
+        $request = new V2TradePaymentDelaytransConfirmrefundqueryRequest();
+        $request->setHuifuId($this->resolveHuifuId($payload));
+
+        $orgReqSeqId = isset($payload['org_req_seq_id']) ? trim((string)$payload['org_req_seq_id']) : '';
+        $orgHfSeqId = isset($payload['org_hf_seq_id']) ? trim((string)$payload['org_hf_seq_id']) : '';
+        if ($orgReqSeqId === '' && $orgHfSeqId === '') {
+            throw new EasyHuifuException('Huifu split confirm refund query failed: missing org_req_seq_id/org_hf_seq_id');
+        }
+
+        $request->setOrgReqDate($this->resolveOriginalReqDate($payload, $orgReqSeqId));
+        if ($orgReqSeqId !== '') {
+            $request->setOrgReqSeqId($orgReqSeqId);
+        }
+        if ($orgHfSeqId !== '') {
+            $request->setOrgHfSeqId($orgHfSeqId);
+        }
+
+        $response = $this->request($request, 'Huifu split confirm refund query');
+
+        return [
+            'huifu_id' => $request->getHuifuId(),
+            'org_req_seq_id' => $request->getOrgReqSeqId(),
+            'org_hf_seq_id' => $request->getOrgHfSeqId(),
             'org_req_date' => $request->getOrgReqDate(),
             'resp_code' => $this->extractRespCode($response),
             'resp_desc' => $this->extractRespDesc($response),
