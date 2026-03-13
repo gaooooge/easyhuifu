@@ -379,39 +379,41 @@ $refundConfirm = $huifu->split()->confirmRefund([
 
 ## 进件
 
-### 个人进件
+### 个人进件 + 业务入驻（组合调用）
 
 ```php
 $result = $huifu->entry()->openIndividual([
-    'name' => '测试用户',
-    'cert_no' => '3301xxxxxxxxxxxx',
-    'mobile_no' => '13800000000',
-    'cert_type' => '00',
-    'card_no' => '6222xxxxxxxxxxxx',
-    'prov_id' => '310000',
-    'area_id' => '310100',
-    'bank_code' => '01050000',
-    'branch_code' => '105290071008',
+    'name' => '测试用户', // 姓名
+    'cert_no' => '3301xxxxxxxxxxxx', // 证件号
+    'mobile_no' => '13800000000', // 手机号
+    'cert_type' => '00', // 证件类型
+    'card_no' => '6222xxxxxxxxxxxx', // 结算银行卡号
+    'prov_id' => '310000', // 开户省编码
+    'area_id' => '310100', // 开户市编码
+    'bank_code' => '01050000', // 开户总行编码
+    'branch_code' => '105290071008', // 开户支行联行号
 ]);
 ```
 
-### 企业进件
+### 企业进件 + 业务入驻（组合调用）
 
 ```php
 $result = $huifu->entry()->openEnterprise([
-    'reg_name' => '测试企业',
-    'license_code' => '9131xxxxxxxxxxxx',
-    'contact_name' => '张三',
-    'contact_mobile' => '13800000000',
-    'legal_name' => '张三',
-    'legal_cert_no' => '3301xxxxxxxxxxxx',
-    'bank_code' => '01050000',
-    'branch_name' => '中国建设银行上海张江支行',
+    'reg_name' => '测试企业', // 企业注册名称
+    'license_code' => '9131xxxxxxxxxxxx', // 统一社会信用代码
+    'contact_name' => '张三', // 联系人姓名
+    'contact_mobile' => '13800000000', // 联系人手机号
+    'legal_name' => '张三', // 法人姓名
+    'legal_cert_no' => '3301xxxxxxxxxxxx', // 法人证件号
+    'bank_code' => '01050000', // 开户总行编码
+    'branch_name' => '中国建设银行上海张江支行', // 开户支行名称（可由系统解析联行号）
 ]);
 ```
 
 说明：
 
+- `openIndividual/openEnterprise` 默认执行“基础进件 + 业务入驻”。
+- 返回结果包含 `huifu_id`、`basic_open`、`busi_open` 三部分。
 - 企业银行卡场景可直接传 `branch_code`
 - 仅传 `branch_name` 时，默认使用本地联行号字典解析
 - 如需覆盖默认解析逻辑，可注入 `branch_code_resolver`
