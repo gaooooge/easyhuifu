@@ -118,6 +118,7 @@ $huifu = new Application([
 $huifu->pay();
 $huifu->payout();
 $huifu->refund();
+$huifu->split();
 $huifu->entry();
 $huifu->bankBranches();
 $huifu->regions();
@@ -322,6 +323,59 @@ $result = $huifu->refund()->scanPay([
 
 ```php
 $result = $huifu->refund()->refund($order, 10.00, 'refund202603120001');
+```
+
+## 延迟分账确认
+
+```php
+$confirm = $huifu->split()->confirm([
+    'huifu_id' => '666600010000001',
+    'org_req_seq_id' => 'rQ20260312123000123456789012345678',
+    'org_req_date' => '20260312',
+    'pay_type' => 'ACCT_PAYMENT',
+    'acct_split_bunch' => [
+        'acct_infos' => [
+            [
+                'div_amt' => '0.0030',
+                'huifu_id' => '666600010000002',
+            ],
+            [
+                'div_amt' => '0.0020',
+                'huifu_id' => '666600010000003',
+            ],
+        ],
+    ],
+    'remark' => 'order split confirm',
+]);
+```
+
+## 延迟分账确认查询
+
+```php
+$query = $huifu->split()->confirmQuery([
+    'huifu_id' => '666600010000001',
+    'org_req_seq_id' => 'rS20260312123500123456789012345678',
+    'org_req_date' => '20260312',
+]);
+```
+
+## 延迟分账确认退款
+
+```php
+$refundConfirm = $huifu->split()->confirmRefund([
+    'huifu_id' => '666600010000001',
+    'org_req_seq_id' => 'rS20260312123500123456789012345678',
+    'org_req_date' => '20260312',
+    'acct_split_bunch' => [
+        'acct_infos' => [
+            [
+                'div_amt' => '0.0010',
+                'huifu_id' => '666600010000002',
+            ],
+        ],
+    ],
+    'remark' => 'split confirm refund',
+]);
 ```
 
 ## 进件

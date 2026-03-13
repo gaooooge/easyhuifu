@@ -49,7 +49,25 @@ try {
         'pay_time' => time(),
     ], 10.00, 'refund202603120001');
 
-    var_dump($pay, $payout, $refund);
+    $splitConfirm = $huifu->split()->confirm([
+        'org_req_seq_id' => 'rQ202603120001',
+        'org_req_date' => '20260312',
+        'acct_split_bunch' => [
+            'acct_infos' => [
+                [
+                    'div_amt' => '0.0030',
+                    'huifu_id' => '666600010000002',
+                ],
+            ],
+        ],
+    ]);
+
+    $splitConfirmQuery = $huifu->split()->confirmQuery([
+        'org_req_seq_id' => $splitConfirm['req_seq_id'],
+        'org_req_date' => $splitConfirm['req_date'],
+    ]);
+
+    var_dump($pay, $payout, $refund, $splitConfirm, $splitConfirmQuery);
 } catch (EasyHuifuException $e) {
     echo $e->getMessage() . PHP_EOL;
 }

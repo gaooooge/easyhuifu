@@ -11,6 +11,7 @@ use EasyHuifu\Service\EntryService;
 use EasyHuifu\Service\PayService;
 use EasyHuifu\Service\PayoutService;
 use EasyHuifu\Service\RefundService;
+use EasyHuifu\Service\SplitService;
 use EasyHuifu\Support\ArrayBankBranchRepository;
 use EasyHuifu\Support\ArrayRegionRepository;
 use EasyHuifu\Support\LocalBranchCodeResolver;
@@ -29,6 +30,7 @@ class Application
     private $payService;
     private $payoutService;
     private $refundService;
+    private $splitService;
 
     public function __construct(array $config, array $services = [])
     {
@@ -114,5 +116,13 @@ class Application
             $this->refundService = new RefundService($this);
         }
         return $this->refundService;
+    }
+
+    public function split()
+    {
+        if ($this->splitService === null) {
+            $this->splitService = new SplitService($this);
+        }
+        return $this->splitService;
     }
 }
