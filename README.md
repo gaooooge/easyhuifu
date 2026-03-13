@@ -7,6 +7,7 @@
 - 交易支付下单
 - 支付查询
 - 支付关单
+- 延迟分账与交易确认
 - 余额打款
 - 扫码退款
 - 个人进件
@@ -48,15 +49,15 @@
 
 ## 安装
 
-### Composer
+### 1. 直接安装（推荐）
 
 ```bash
-composer require gaooooge/easyhuifu
+composer require gaooooge/easyhuifu:^0.1.4
 ```
 
-### VCS 仓库
+### 2. 从 Git 仓库安装
 
-如未接入 Packagist，可在目标项目 `composer.json` 中增加：
+在目标项目 `composer.json` 中增加：
 
 ```json
 {
@@ -67,7 +68,7 @@ composer require gaooooge/easyhuifu
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1"
+    "gaooooge/easyhuifu": "^0.1.4"
   }
 }
 ```
@@ -78,9 +79,7 @@ composer require gaooooge/easyhuifu
 composer update gaooooge/easyhuifu
 ```
 
-### Path 仓库
-
-用于本地联调：
+### 3. 本地 Path 联调
 
 ```json
 {
@@ -91,7 +90,7 @@ composer update gaooooge/easyhuifu
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "*"
+    "gaooooge/easyhuifu": "^0.1.4"
   }
 }
 ```
@@ -158,12 +157,12 @@ $huifu->regions();
 
 ```php
 $pay = $huifu->pay()->miniApp([
-    'amount' => 0.01,
-    'goods_desc' => '订单支付',
-    'order_no' => 'M202603120001',
-    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
-    'sub_appid' => 'wx1234567890abcdef',
-    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
+    'amount' => 0.01, // 支付金额（元）
+    'goods_desc' => '订单支付', // 商品描述
+    'order_no' => 'M202603120001', // 业务订单号
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify', // 支付回调地址
+    'sub_appid' => 'wx1234567890abcdef', // 微信子应用 appid
+    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o', // 用户 openid
 ]);
 ```
 
@@ -227,22 +226,22 @@ $huifu->pay()->jsPay([...]);
 
 ```php
 $pay = $huifu->pay()->miniApp([
-    'amount' => 0.01,
-    'goods_desc' => '订单支付',
-    'order_no' => 'M202603120001',
-    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
-    'sub_appid' => 'wx1234567890abcdef',
-    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
-    'delay_acct_flag' => 'Y',
+    'amount' => 0.01, // 支付金额（元）
+    'goods_desc' => '订单支付', // 商品描述
+    'order_no' => 'M202603120001', // 业务订单号
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify', // 支付回调地址
+    'sub_appid' => 'wx1234567890abcdef', // 微信子应用 appid
+    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o', // 用户 openid
+    'delay_acct_flag' => 'Y', // 开启延迟分账
     'acct_split_bunch' => [
         'acct_infos' => [
             [
-                'div_amt' => '0.0030',
-                'huifu_id' => '666600010000002',
+                'div_amt' => '0.0030', // 分账金额
+                'huifu_id' => '666600010000002', // 分账接收方汇付号
             ],
             [
-                'div_amt' => '0.0020',
-                'huifu_id' => '666600010000003',
+                'div_amt' => '0.0020', // 分账金额
+                'huifu_id' => '666600010000003', // 分账接收方汇付号
             ],
         ],
     ],
@@ -284,11 +283,11 @@ $close = $huifu->pay()->close([
 
 ```php
 $result = $huifu->payout()->payToActor([
-    'role_type' => 'supplier',
-    'actor_id' => 20001,
-    'app_id' => 10000,
-    'amount' => 88.00,
-    'remark' => '供应商提现打款',
+    'role_type' => 'supplier', // 主体类型
+    'actor_id' => 20001, // 主体 ID
+    'app_id' => 10000, // 应用 ID
+    'amount' => 88.00, // 打款金额（元）
+    'remark' => '供应商提现打款', // 业务备注
 ]);
 ```
 
@@ -313,10 +312,10 @@ $result = $huifu->payout()->payToActor([
 
 ```php
 $result = $huifu->refund()->scanPay([
-    'huifu_req_seq_id' => 'rQ202603120001',
-    'transaction_id' => '0036000123456789',
-    'pay_time' => time(),
-], 10.00, 'refund202603120001');
+    'huifu_req_seq_id' => 'rQ202603120001', // 原支付请求流水号
+    'transaction_id' => '0036000123456789', // 原支付全局流水号
+    'pay_time' => time(), // 原支付时间
+], 10.00, 'refund202603120001'); // 退款金额、退款单号
 ```
 
 别名方法：
@@ -329,19 +328,19 @@ $result = $huifu->refund()->refund($order, 10.00, 'refund202603120001');
 
 ```php
 $confirm = $huifu->split()->confirm([
-    'huifu_id' => '666600010000001',
-    'org_req_seq_id' => 'rQ20260312123000123456789012345678',
-    'org_req_date' => '20260312',
-    'pay_type' => 'ACCT_PAYMENT',
+    'huifu_id' => '666600010000001', // 发起方汇付号
+    'org_req_seq_id' => 'rQ20260312123000123456789012345678', // 原支付请求流水号
+    'org_req_date' => '20260312', // 原支付请求日期
+    'pay_type' => 'ACCT_PAYMENT', // 交易类型
     'acct_split_bunch' => [
         'acct_infos' => [
             [
-                'div_amt' => '0.0030',
-                'huifu_id' => '666600010000002',
+                'div_amt' => '0.0030', // 分账金额
+                'huifu_id' => '666600010000002', // 分账接收方汇付号
             ],
             [
-                'div_amt' => '0.0020',
-                'huifu_id' => '666600010000003',
+                'div_amt' => '0.0020', // 分账金额
+                'huifu_id' => '666600010000003', // 分账接收方汇付号
             ],
         ],
     ],
@@ -557,9 +556,9 @@ EasyHuifu\Exception\EasyHuifuException
 
 ```php
 $basic = $huifu->entry()->basicOpenIndividual([
-    'name' => '测试用户',
-    'cert_no' => '3301xxxxxxxxxxxx',
-    'mobile_no' => '13800000000',
+    'name' => '测试用户', // 姓名
+    'cert_no' => '3301xxxxxxxxxxxx', // 证件号
+    'mobile_no' => '13800000000', // 手机号
 ]);
 ```
 
@@ -567,16 +566,16 @@ $basic = $huifu->entry()->basicOpenIndividual([
 
 ```php
 $basic = $huifu->entry()->basicOpenEnterprise([
-    'reg_name' => '测试企业',
-    'license_code' => '9131xxxxxxxxxxxx',
-    'reg_prov_id' => '310000',
-    'reg_area_id' => '310100',
-    'reg_district_id' => '310115',
-    'reg_detail' => '浦东新区xx路xx号',
-    'legal_name' => '张三',
-    'legal_cert_no' => '3301xxxxxxxxxxxx',
-    'contact_name' => '张三',
-    'contact_mobile' => '13800000000',
+    'reg_name' => '测试企业', // 企业注册名称
+    'license_code' => '9131xxxxxxxxxxxx', // 统一社会信用代码
+    'reg_prov_id' => '310000', // 注册省编码
+    'reg_area_id' => '310100', // 注册市编码
+    'reg_district_id' => '310115', // 注册区县编码
+    'reg_detail' => '浦东新区xx路xx号', // 注册地址详情
+    'legal_name' => '张三', // 法人姓名
+    'legal_cert_no' => '3301xxxxxxxxxxxx', // 法人证件号
+    'contact_name' => '张三', // 联系人姓名
+    'contact_mobile' => '13800000000', // 联系人手机号
 ]);
 ```
 

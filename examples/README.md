@@ -32,7 +32,7 @@
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1"
+    "gaooooge/easyhuifu": "^0.1.4"
   }
 }
 ```
@@ -48,7 +48,7 @@
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "*"
+    "gaooooge/easyhuifu": "^0.1.4"
   }
 }
 ```
@@ -103,22 +103,22 @@ $districtCode = $huifu->regions()->getCodeByName('浦东新区', 3, '310100');
 
 ```php
 $pay = $huifu->pay()->miniApp([
-    'amount' => 0.01,
-    'goods_desc' => '订单支付',
-    'order_no' => 'M202603120001',
-    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
-    'sub_appid' => 'wx1234567890abcdef',
-    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o',
-    'delay_acct_flag' => 'Y',
+    'amount' => 0.01, // 支付金额（元）
+    'goods_desc' => '订单支付', // 商品描述
+    'order_no' => 'M202603120001', // 业务订单号
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify', // 支付回调地址
+    'sub_appid' => 'wx1234567890abcdef', // 微信子应用 appid
+    'sub_openid' => 'oUpF8uMuAJO_M2pxb1Q9zNjWeS6o', // 用户 openid
+    'delay_acct_flag' => 'Y', // 开启延迟分账
     'acct_split_bunch' => [
         'acct_infos' => [
             [
-                'div_amt' => '0.0030',
-                'huifu_id' => '666600010000002',
+                'div_amt' => '0.0030', // 分账金额
+                'huifu_id' => '666600010000002', // 分账接收方汇付号
             ],
             [
-                'div_amt' => '0.0020',
-                'huifu_id' => '666600010000003',
+                'div_amt' => '0.0020', // 分账金额
+                'huifu_id' => '666600010000003', // 分账接收方汇付号
             ],
         ],
     ],
@@ -134,13 +134,13 @@ $pay = $huifu->pay()->miniApp([
 
 ```php
 $confirm = $huifu->split()->confirm([
-    'org_req_seq_id' => 'rQ20260312123000123456789012345678',
-    'org_req_date' => '20260312',
+    'org_req_seq_id' => 'rQ20260312123000123456789012345678', // 原支付请求流水号
+    'org_req_date' => '20260312', // 原支付请求日期
     'acct_split_bunch' => [
         'acct_infos' => [
             [
-                'div_amt' => '0.0030',
-                'huifu_id' => '666600010000002',
+                'div_amt' => '0.0030', // 分账金额
+                'huifu_id' => '666600010000002', // 分账接收方汇付号
             ],
         ],
     ],
@@ -156,9 +156,9 @@ $confirmQuery = $huifu->split()->confirmQuery([
 
 ```php
 $basic = $huifu->entry()->basicOpenIndividual([
-    'name' => '测试用户',
-    'cert_no' => '3301xxxxxxxxxxxx',
-    'mobile_no' => '13800000000',
+    'name' => '测试用户', // 姓名
+    'cert_no' => '3301xxxxxxxxxxxx', // 证件号
+    'mobile_no' => '13800000000', // 手机号
 ]);
 
 $busi = $huifu->entry()->openBusiness($basic['huifu_id'], [
