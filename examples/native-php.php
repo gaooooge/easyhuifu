@@ -16,6 +16,21 @@ $huifu = new Application([
 ]);
 
 try {
+    $basicEntry = $huifu->entry()->basicOpenIndividual([
+        'name' => '测试用户',
+        'cert_no' => '3301xxxxxxxxxxxx',
+        'mobile_no' => '13800000000',
+    ]);
+
+    $busiOpen = $huifu->entry()->openBusiness($basicEntry['huifu_id'], [
+        'settle_config' => [
+            'settle_cycle' => 'T1',
+        ],
+        'cash_config' => [
+            ['cash_type' => 'T1', 'fix_amt' => '0.00'],
+        ],
+    ]);
+
     $pay = $huifu->pay()->miniApp([
         'amount' => 0.01,
         'goods_desc' => '订单支付',
@@ -67,7 +82,7 @@ try {
         'org_req_date' => $splitConfirm['req_date'],
     ]);
 
-    var_dump($pay, $payout, $refund, $splitConfirm, $splitConfirmQuery);
+    var_dump($basicEntry, $busiOpen, $pay, $payout, $refund, $splitConfirm, $splitConfirmQuery);
 } catch (EasyHuifuException $e) {
     echo $e->getMessage() . PHP_EOL;
 }

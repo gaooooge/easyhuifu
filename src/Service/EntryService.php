@@ -9,7 +9,7 @@ use EasyHuifu\Exception\EasyHuifuException;
 
 class EntryService extends BaseService
 {
-    public function openIndividual(array $payload, array $context = [])
+    public function basicOpenIndividual(array $payload, array $context = [])
     {
         $context['entry_type'] = 'indv';
         $payload = $this->filterPayloadByEntryType($payload, 'indv');
@@ -46,13 +46,10 @@ class EntryService extends BaseService
             throw new EasyHuifuException('Huifu individual onboarding succeeded without returning huifu_id');
         }
 
-        $busiOpen = $this->openBusiness($huifuId, $payload, $context);
-        $this->persistEntryArchive('indv', $huifuId, $payload, $context, $basicOpen, $busiOpen);
-
-        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpen, 'busi_open' => $busiOpen];
+        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpen];
     }
 
-    public function openEnterprise(array $payload, array $context = [])
+    public function basicOpenEnterprise(array $payload, array $context = [])
     {
         $context['entry_type'] = 'ent';
         $payload = $this->filterPayloadByEntryType($payload, 'ent');
@@ -116,10 +113,31 @@ class EntryService extends BaseService
             throw new EasyHuifuException('Huifu enterprise onboarding succeeded without returning huifu_id');
         }
 
-        $busiOpen = $this->openBusiness($huifuId, $payload, $context);
-        $this->persistEntryArchive('ent', $huifuId, $payload, $context, $basicOpen, $busiOpen);
+        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpen];
+    }
 
-        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpen, 'busi_open' => $busiOpen];
+    public function openIndividual(array $payload, array $context = [])
+    {
+        $context['entry_type'] = 'indv';
+        $payload = $this->filterPayloadByEntryType($payload, 'indv');
+        $basicOpenResult = $this->basicOpenIndividual($payload, $context);
+        $huifuId = (string)$basicOpenResult['huifu_id'];
+        $busiOpen = $this->openBusiness($huifuId, $payload, $context);
+        $this->persistEntryArchive('indv', $huifuId, $payload, $context, $basicOpenResult['basic_open'], $busiOpen);
+
+        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpenResult['basic_open'], 'busi_open' => $busiOpen];
+    }
+
+    public function openEnterprise(array $payload, array $context = [])
+    {
+        $context['entry_type'] = 'ent';
+        $payload = $this->filterPayloadByEntryType($payload, 'ent');
+        $basicOpenResult = $this->basicOpenEnterprise($payload, $context);
+        $huifuId = (string)$basicOpenResult['huifu_id'];
+        $busiOpen = $this->openBusiness($huifuId, $payload, $context);
+        $this->persistEntryArchive('ent', $huifuId, $payload, $context, $basicOpenResult['basic_open'], $busiOpen);
+
+        return ['huifu_id' => $huifuId, 'basic_open' => $basicOpenResult['basic_open'], 'busi_open' => $busiOpen];
     }
 
     public function openBusiness($huifuId, array $payload = [], array $context = [])

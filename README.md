@@ -536,6 +536,69 @@ EasyHuifu\Exception\EasyHuifuException
 - `examples/README.md`
 - `docs/THINKPHP_ADAPTER.md`
 
+## 进件与入驻拆分说明
+
+`EntryService` 现在提供两套调用方式：
+
+- 仅进件（不要求银行卡参数）
+  - `entry()->basicOpenIndividual([...])`
+  - `entry()->basicOpenEnterprise([...])`
+- 进件+入驻（一体化，保持兼容）
+  - `entry()->openIndividual([...])`
+  - `entry()->openEnterprise([...])`
+
+说明：
+
+- `basicOpen*` 只做基础进件，返回 `huifu_id` 和 `basic_open`。
+- `open*` 会先调用 `basicOpen*`，再调用 `openBusiness` 完成入驻。
+- 入驻阶段若涉及结算卡/代发配置，仍按 `openBusiness` 参数规则传入（可在业务侧按需补充银行卡信息）。
+
+### 仅进件示例（个人）
+
+```php
+$basic = $huifu->entry()->basicOpenIndividual([
+    'name' => '测试用户',
+    'cert_no' => '3301xxxxxxxxxxxx',
+    'mobile_no' => '13800000000',
+]);
+```
+
+### 仅进件示例（企业）
+
+```php
+$basic = $huifu->entry()->basicOpenEnterprise([
+    'reg_name' => '测试企业',
+    'license_code' => '9131xxxxxxxxxxxx',
+    'reg_prov_id' => '310000',
+    'reg_area_id' => '310100',
+    'reg_district_id' => '310115',
+    'reg_detail' => '浦东新区xx路xx号',
+    'legal_name' => '张三',
+    'legal_cert_no' => '3301xxxxxxxxxxxx',
+    'contact_name' => '张三',
+    'contact_mobile' => '13800000000',
+]);
+```
+
+### 分步入驻示例（先进件后入驻）
+
+```php
+$basic = $huifu->entry()->basicOpenIndividual([
+    'name' => '测试用户',
+    'cert_no' => '3301xxxxxxxxxxxx',
+    'mobile_no' => '13800000000',
+]);
+
+$busi = $huifu->entry()->openBusiness($basic['huifu_id'], [
+    'settle_config' => [
+        'settle_cycle' => 'T1',
+    ],
+    'cash_config' => [
+        ['cash_type' => 'T1', 'fix_amt' => '0.00'],
+    ],
+]);
+```
+
 
 ## 延迟分账交易确认说明（必读）
 
