@@ -55,6 +55,22 @@ try {
         ],
     ]);
 
+    // 微信 APP 支付
+    $appPay = $huifu->pay()->app([
+        'amount' => 0.01, // 支付金额（元）
+        'goods_desc' => '订单支付', // 商品描述
+        'order_no' => 'M202603120002', // 业务订单号
+        'sub_appid' => 'wx1234567890abcdef', // 微信应用 appid
+    ]);
+
+    // 支付宝 APP 拉起
+    $alipayApp = $huifu->pay()->alipayApp([
+        'amount' => 0.01, // 支付金额（元）
+        'goods_desc' => '订单支付', // 商品描述
+        'order_no' => 'M202603120003', // 业务订单号
+        'subject' => '订单支付', // 支付宝标题
+    ]);
+
     // 余额打款
     $payout = $huifu->payout()->payToActor([
         'huifu_id' => '6666000xxxxxxx', // 收款方汇付号
@@ -89,7 +105,7 @@ try {
         'org_req_date' => $splitConfirm['req_date'], // 交易确认请求日期
     ]);
 
-    var_dump($basicEntry, $busiOpen, $pay, $payout, $refund, $splitConfirm, $splitConfirmQuery);
+    var_dump($basicEntry, $busiOpen, $pay, $appPay, $alipayApp, $payout, $refund, $splitConfirm, $splitConfirmQuery);
 } catch (EasyHuifuException $e) {
     echo $e->getMessage() . PHP_EOL;
 }

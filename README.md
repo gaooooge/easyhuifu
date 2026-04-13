@@ -5,6 +5,8 @@
 ## 功能概览
 
 - 交易支付下单
+- 微信 APP 支付
+- 支付宝支付（JS/正扫，可用于 APP 拉起支付宝）
 - 支付查询
 - 支付关单
 - 延迟分账与交易确认
@@ -52,7 +54,7 @@
 ### 1. 直接安装（推荐）
 
 ```bash
-composer require gaooooge/easyhuifu:^0.1.4
+composer require gaooooge/easyhuifu:^0.1.5
 ```
 
 ### 2. 从 Git 仓库安装
@@ -68,7 +70,7 @@ composer require gaooooge/easyhuifu:^0.1.4
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1.4"
+    "gaooooge/easyhuifu": "^0.1.5"
   }
 }
 ```
@@ -90,7 +92,7 @@ composer update gaooooge/easyhuifu
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1.4"
+    "gaooooge/easyhuifu": "^0.1.5"
   }
 }
 ```
@@ -171,7 +173,41 @@ $pay = $huifu->pay()->miniApp([
 ```php
 $huifu->pay()->create([...]);
 $huifu->pay()->jsPay([...]);
+$huifu->pay()->app([...]); // 微信 APP 或 APP 拉起支付宝
+$huifu->pay()->alipay([...]); // 支付宝 JS 支付
+$huifu->pay()->alipayNative([...]); // 支付宝正扫
+$huifu->pay()->alipayApp([...]); // APP 拉起支付宝，别名同 alipayNative()
 ```
+
+### 微信 APP 支付示例
+
+```php
+$pay = $huifu->pay()->app([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120002',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'sub_appid' => 'wx1234567890abcdef',
+]);
+```
+
+### 支付宝 APP 拉起示例
+
+```php
+$pay = $huifu->pay()->alipayApp([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120003',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'subject' => '订单支付',
+]);
+```
+
+说明：
+
+- `alipayApp()` 默认走 `A_NATIVE`
+- 返回结果里的 `qr_code` 可交给移动端按支付宝 APP 拉起方案处理
+- 如需自己控制参数，也可直接调用 `app(['trade_type' => 'A_NATIVE', ...])`
 
 ### 返回结果示例
 
@@ -182,6 +218,7 @@ $huifu->pay()->jsPay([...]);
     'huifu_id' => '666600010000001',
     'resp_code' => '00000100',
     'resp_desc' => '成功',
+    'trade_type' => 'T_MINIAPP',
     'pay_info' => [
         'package' => 'prepay_id=wx...',
         'timeStamp' => '1710211200',
@@ -189,6 +226,7 @@ $huifu->pay()->jsPay([...]);
         'signType' => 'RSA',
         'paySign' => 'xxxx',
     ],
+    'qr_code' => null,
     'response' => [...],
 ]
 ```
@@ -210,13 +248,21 @@ $huifu->pay()->jsPay([...]);
 - `trade_type`
   可选；不传时根据 `pay_source` 推断
 - `pay_source`
-  可选；`wx/wxapp/miniapp` 映射为 `T_MINIAPP`，`mp/jsapi` 映射为 `T_JSAPI`
+  可选；`wx/wxapp/miniapp` 映射为 `T_MINIAPP`，`mp/jsapi` 映射为 `T_JSAPI`，`app` 映射为 `T_APP`，`alipay/native/appzfb` 映射为 `A_NATIVE`
 - `sub_appid`
-  微信子应用 `appid`
+  微信子应用 `appid`；微信 APP 支付也可复用
 - `sub_openid`
   微信子应用下用户 `openid`
 - `wx_data`
   可选，微信参数集合；支持数组或 JSON 字符串
+- `alipay_data`
+  可选，支付宝参数集合；支持数组或 JSON 字符串
+- `method_expand`
+  可选，统一下单接口扩展参数；传入后优先级高于 `wx_data/alipay_data`
+- `subject`
+  可选，支付宝交易标题；未传时回退 `goods_desc`
+- `buyer_id`
+  可选，支付宝买家用户号；JS 支付场景常用
 - `delay_acct_flag`
   可选，是否延迟分账，`Y` 为开启，默认 `N`
 - `acct_split_bunch`

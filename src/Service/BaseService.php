@@ -14,7 +14,7 @@ abstract class BaseService
         $this->app = $app;
     }
 
-    protected function app()
+    protected function application()
     {
         return $this->app;
     }

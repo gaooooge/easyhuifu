@@ -32,7 +32,7 @@
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1.4"
+    "gaooooge/easyhuifu": "^0.1.5"
   }
 }
 ```
@@ -48,7 +48,7 @@
     }
   ],
   "require": {
-    "gaooooge/easyhuifu": "^0.1.4"
+    "gaooooge/easyhuifu": "^0.1.5"
   }
 }
 ```
@@ -62,6 +62,8 @@
 该示例包含：
 
 - 小程序支付下单
+- 微信 APP 支付
+- 支付宝 APP 拉起下单
 - 余额打款
 - 退款
 - 延迟分账确认与确认查询
@@ -124,6 +126,35 @@ $pay = $huifu->pay()->miniApp([
     ],
 ]);
 ```
+
+## 微信 APP 支付示例
+
+```php
+$pay = $huifu->pay()->app([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120002',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'sub_appid' => 'wx1234567890abcdef',
+]);
+```
+
+## 支付宝 APP 拉起示例
+
+```php
+$pay = $huifu->pay()->alipayApp([
+    'amount' => 0.01,
+    'goods_desc' => '订单支付',
+    'order_no' => 'M202603120003',
+    'notify_url' => 'https://your-domain.com/payment/huifu/notify',
+    'subject' => '订单支付',
+]);
+```
+
+说明：
+
+- `alipayApp()` 默认使用 `A_NATIVE`
+- 返回结果中的 `qr_code` 可交给 APP 侧按支付宝拉起方案处理
 
 说明：
 

@@ -2,6 +2,7 @@
 
 namespace EasyHuifu\Service;
 
+use BsPaySdk\request\v4\payment\TradePaymentCreateRequest;
 use BsPaySdk\request\V2TradePaymentScanpayCloseRequest;
 use BsPaySdk\request\V3TradePaymentJspayRequest;
 use BsPaySdk\request\V3TradePaymentScanpayQueryRequest;
@@ -11,6 +12,10 @@ class PayService extends BaseService
 {
     public function create(array $payload)
     {
+        if ($this->shouldUseUnifiedCreate($payload)) {
+            return $this->unifiedCreate($payload);
+        }
+
         return $this->jsPay($payload);
     }
 
@@ -65,6 +70,36 @@ class PayService extends BaseService
         $payload['trade_type'] = $payload['trade_type'] ?? 'T_MINIAPP';
 
         return $this->jsPay($payload);
+    }
+
+    public function app(array $payload)
+    {
+        $payload['trade_type'] = $payload['trade_type'] ?? $this->resolveAppTradeType($payload);
+
+        return $this->unifiedCreate($payload);
+    }
+
+    public function alipay(array $payload)
+    {
+        $payload['trade_type'] = $payload['trade_type'] ?? 'A_JSAPI';
+
+        if ($this->shouldUseUnifiedCreate($payload)) {
+            return $this->unifiedCreate($payload);
+        }
+
+        return $this->jsPay($payload);
+    }
+
+    public function alipayNative(array $payload)
+    {
+        $payload['trade_type'] = $payload['trade_type'] ?? 'A_NATIVE';
+
+        return $this->unifiedCreate($payload);
+    }
+
+    public function alipayApp(array $payload)
+    {
+        return $this->alipayNative($payload);
     }
 
     public function query(array $payload)
@@ -176,11 +211,145 @@ class PayService extends BaseService
         if ($paySource === 'mp' || $paySource === 'jsapi') {
             return 'T_JSAPI';
         }
+        if ($paySource === 'app') {
+            return 'T_APP';
+        }
         if ($paySource === 'alipay') {
             return 'A_JSAPI';
         }
+        if ($paySource === 'alipay_native' || $paySource === 'native' || $paySource === 'app_alipay' || $paySource === 'alipay_app' || $paySource === 'appzfb') {
+            return 'A_NATIVE';
+        }
 
         return 'T_MINIAPP';
+    }
+
+    private function resolveAppTradeType(array $payload)
+    {
+        $paySource = strtolower(trim((string)($payload['pay_source'] ?? '')));
+        if (in_array($paySource, ['alipay', 'alipay_native', 'native', 'app_alipay', 'alipay_app', 'appzfb'], true)) {
+            return 'A_NATIVE';
+        }
+
+        return 'T_APP';
+    }
+
+    private function shouldUseUnifiedCreate(array $payload)
+    {
+        $tradeType = strtoupper($this->resolveTradeType($payload));
+        if (in_array($tradeType, ['T_APP', 'A_NATIVE', 'U_NATIVE', 'U_JSAPI', 'U_MICROPAY'], true)) {
+            return true;
+        }
+
+        $paySource = strtolower(trim((string)($payload['pay_source'] ?? '')));
+
+        return in_array($paySource, ['app', 'native', 'alipay_native', 'app_alipay', 'alipay_app', 'appzfb'], true);
+    }
+
+    private function unifiedCreate(array $payload)
+    {
+        $amount = isset($payload['amount']) ? (float)$payload['amount'] : (isset($payload['trans_amt']) ? (float)$payload['trans_amt'] : 0.0);
+        if ($amount <= 0) {
+            throw new EasyHuifuException('Huifu pay failed: invalid amount');
+        }
+
+        $notifyUrl = $this->firstNotEmpty([
+            $payload['notify_url'] ?? null,
+            $this->config()->get('notify_url', ''),
+        ]);
+        if ($notifyUrl === '') {
+            throw new EasyHuifuException('Huifu pay failed: missing notify_url');
+        }
+
+        $request = new TradePaymentCreateRequest();
+        $reqSeqId = $this->buildPayReqSeqId($payload);
+        $tradeType = strtoupper($this->resolveTradeType($payload));
+
+        $request->setReqDate(date('Ymd'));
+        $request->setReqSeqId($reqSeqId);
+        $request->setHuifuId($this->resolveHuifuId($payload));
+        $request->setGoodsDesc($this->resolveGoodsDesc($payload));
+        $request->setTradeType($tradeType);
+        $request->setTransAmt($this->formatAmount($amount));
+        $request->setNotifyUrl($notifyUrl);
+        $request->setDelayAcctFlag((string)($payload['delay_acct_flag'] ?? 'N'));
+        $request->setPayScene((string)($payload['pay_scene'] ?? '02'));
+
+        $remark = $this->firstNotEmpty([
+            $payload['remark'] ?? null,
+            $payload['order_no'] ?? null,
+            $payload['out_trade_no'] ?? null,
+            $payload['merchant_order_no'] ?? null,
+        ]);
+        if ($remark !== '') {
+            $request->setRemark($remark);
+        }
+
+        foreach ([
+            'time_expire' => 'setTimeExpire',
+            'limit_pay_type' => 'setLimitPayType',
+            'channel_no' => 'setChannelNo',
+            'acct_id' => 'setAcctId',
+            'term_div_coupon_type' => 'setTermDivCouponType',
+            'fq_mer_discount_flag' => 'setFqMerDiscountFlag',
+            'combinedpay_data' => 'setCombinedpayData',
+            'combinedpay_data_fee_info' => 'setCombinedpayDataFeeInfo',
+            'trans_fee_allowance_info' => 'setTransFeeAllowanceInfo',
+        ] as $field => $setter) {
+            if (!isset($payload[$field]) || $payload[$field] === '' || $payload[$field] === null) {
+                continue;
+            }
+
+            $value = is_array($payload[$field]) ? $this->normalizeJson($payload[$field]) : (string)$payload[$field];
+            $request->{$setter}($value);
+        }
+
+        $feeFlag = $this->firstNotEmpty([
+            $payload['fee_flag'] ?? null,
+            $payload['fee_sign'] ?? null,
+        ]);
+        if ($feeFlag !== '') {
+            $request->setFeeFlag($feeFlag);
+        }
+
+        if (!empty($payload['acct_split_bunch'])) {
+            $request->setAcctSplitBunch(is_array($payload['acct_split_bunch'])
+                ? $this->normalizeJson($payload['acct_split_bunch'])
+                : (string)$payload['acct_split_bunch']);
+        }
+        if (!empty($payload['terminal_device_data'])) {
+            $request->setTerminalDeviceData(is_array($payload['terminal_device_data'])
+                ? $this->normalizeJson($payload['terminal_device_data'])
+                : (string)$payload['terminal_device_data']);
+        }
+
+        $methodExpand = $this->buildMethodExpand($tradeType, $payload);
+        if ($methodExpand !== '') {
+            $request->setMethodExpand($methodExpand);
+        }
+
+        $this->logger()->info('pay.start', $this->maskSensitive([
+            'req_seq_id' => $reqSeqId,
+            'huifu_id' => $request->getHuifuId(),
+            'trade_type' => $tradeType,
+            'amount' => $request->getTransAmt(),
+        ]));
+
+        $response = $this->request($request, 'Huifu unified create');
+        $payInfo = $this->extractPayInfo($response);
+
+        return [
+            'req_seq_id' => $reqSeqId,
+            'req_date' => $request->getReqDate(),
+            'huifu_id' => $request->getHuifuId(),
+            'trade_type' => $tradeType,
+            'resp_code' => $this->extractRespCode($response),
+            'resp_desc' => $this->extractRespDesc($response),
+            'pay_info' => $payInfo,
+            'qr_code' => $this->extractResponseValue($response, 'qr_code'),
+            'hf_seq_id' => $this->extractResponseValue($response, 'hf_seq_id'),
+            'response' => $response,
+        ];
     }
 
     private function buildPayExtendInfo(array $payload, $notifyUrl)
@@ -255,13 +424,81 @@ class PayService extends BaseService
         return $wxData;
     }
 
-    private function extractPayInfo(array &$response)
+    private function buildMethodExpand($tradeType, array $payload)
     {
-        if (!isset($response['data']) || !is_array($response['data']) || !isset($response['data']['pay_info'])) {
-            return [];
+        $tradeType = strtoupper((string)$tradeType);
+
+        if (!empty($payload['method_expand'])) {
+            return is_array($payload['method_expand'])
+                ? $this->normalizeJson($payload['method_expand'])
+                : trim((string)$payload['method_expand']);
         }
 
-        $payInfo = $response['data']['pay_info'];
+        if (strpos($tradeType, 'A_') === 0) {
+            if (!empty($payload['alipay_data'])) {
+                return is_array($payload['alipay_data'])
+                    ? $this->normalizeJson($payload['alipay_data'])
+                    : trim((string)$payload['alipay_data']);
+            }
+
+            $alipayData = $this->buildAlipayData($payload);
+
+            return empty($alipayData) ? '' : $this->normalizeJson($alipayData);
+        }
+
+        if (strpos($tradeType, 'T_') === 0 || strpos($tradeType, 'U_') === 0) {
+            if (!empty($payload['wx_data'])) {
+                return is_array($payload['wx_data'])
+                    ? $this->normalizeJson($payload['wx_data'])
+                    : trim((string)$payload['wx_data']);
+            }
+
+            $wxData = $this->buildWxData($payload);
+
+            return empty($wxData) ? '' : $this->normalizeJson($wxData);
+        }
+
+        return '';
+    }
+
+    private function buildAlipayData(array $payload)
+    {
+        $alipayData = [];
+        foreach ([
+            'alipay_store_id', 'buyer_id', 'buyer_logon_id', 'auth_code', 'seller_id',
+            'merchant_order_no', 'operator_id', 'product_code', 'subject', 'store_name',
+            'op_app_id', 'body',
+        ] as $field) {
+            if (isset($payload[$field]) && $payload[$field] !== '' && $payload[$field] !== null) {
+                $alipayData[$field] = (string)$payload[$field];
+            }
+        }
+
+        foreach (['goods_detail', 'extend_params', 'ali_promo_params', 'ext_user_info', 'ali_business_params'] as $field) {
+            if (!isset($payload[$field]) || $payload[$field] === '' || $payload[$field] === null) {
+                continue;
+            }
+
+            if (is_array($payload[$field])) {
+                $alipayData[$field] = $payload[$field];
+                continue;
+            }
+
+            $decoded = json_decode((string)$payload[$field], true);
+            if (is_array($decoded)) {
+                $alipayData[$field] = $decoded;
+            }
+        }
+
+        return $alipayData;
+    }
+
+    private function extractPayInfo(array &$response)
+    {
+        $payInfo = $this->extractResponseValue($response, 'pay_info');
+        if ($payInfo === null) {
+            return [];
+        }
         if (is_array($payInfo)) {
             return $payInfo;
         }
@@ -271,7 +508,11 @@ class PayService extends BaseService
 
         $decoded = json_decode($payInfo, true);
         if (is_array($decoded)) {
-            $response['data']['pay_info'] = $decoded;
+            if (isset($response['data']) && is_array($response['data']) && array_key_exists('pay_info', $response['data'])) {
+                $response['data']['pay_info'] = $decoded;
+            } else {
+                $response['pay_info'] = $decoded;
+            }
 
             return $decoded;
         }
@@ -323,5 +564,18 @@ class PayService extends BaseService
         }
 
         return date('Ymd');
+    }
+
+    private function extractResponseValue(array $response, $key)
+    {
+        if (array_key_exists($key, $response)) {
+            return $response[$key];
+        }
+
+        if (isset($response['data']) && is_array($response['data']) && array_key_exists($key, $response['data'])) {
+            return $response['data'][$key];
+        }
+
+        return null;
     }
 }
